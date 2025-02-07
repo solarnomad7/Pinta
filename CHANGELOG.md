@@ -6,23 +6,25 @@ All notable changes to this project (beginning with version 1.7) will be documen
 Thanks to the following contributors who worked on this release:
 - @cameronwhite
 - @evgeniy-harchenko
-- @yarikoptic
+- @f-i-l-i-p
+- @khoidauminh
 - @Lehonti
-- @zWolfrost
-- @ptixed
 - @logiclrd
 - @Matthieu-LAURENT39
-- @khoidauminh
 - @potatoes1286
-- @TheodorLasse
-- @f-i-l-i-p
+- @ptixed
 - @solarnomad7
+- @TheodorLasse
+- @yarikoptic
+- @zWolfrost
 
 ### Added
 - Ported to GTK4 and libadwaita
 - Upgraded the minimum required .NET version to 8.0
+- Added an arm64 installer for macOS (Apple silicon)
 - Restored support for add-ins, which had been disabled in Pinta 2.0 due to technical limitations
 - Added a preference (in the `View` menu) for switching between a dark or light color scheme
+- Added an improved color picker dialog (#570, #761, #1025)
 - Added a canvas grid with customizable size, replacing the previous pixel grid (#1028, #1105)
 - Added ability to choose tile type (#1051) and edge behavior (#1141) in tile reflection effect
 - Added a new "Dithering" effect (#457)
@@ -46,6 +48,7 @@ Thanks to the following contributors who worked on this release:
 - Added a "Reseed" button for the random noise used by several effects (such as "Add Noise" and "Frosted Glass").  Previously, the noise pattern changed every time the effect was computed (including when other parameters were changed).
 - Saving an image already saved in a format that supports multiple layers to a format that does not support layers will now explicitly prompt the user to flatten the image before saving, rather than silently flattening it (#909)
 - The add-in manager dialog now filters out old versions incompatible with the current version of Pinta, or new addins requiring future version of Pinta ([#1580205](https://bugs.launchpad.net/pinta/+bug/1580205))
+- The tool windows on the right side of the dock layout can now be completely hidden (#1179)
 
 ### Fixed
 - Twist effect applied locally based on selection instead of entire image (#1089)
@@ -73,7 +76,10 @@ Thanks to the following contributors who worked on this release:
 - The Text tool now supports configuring whether antialiasing is enabled (#935)
 - Fixed various artifacts in the shape tools, particularly with larger brush widths (#733, #955)
 - Fixed an issue where the text tool did not immediately redraw after changes to the font or color of unfinalized text (#952, #975)
+- Fixed an issue where the text tool could unexpectedly redraw existing text with the latest palette color, or fail to finalize uncommitted text (#1097, #1176)
 - Fixed a bug where cut / paste operations did not behave as expected with complex selections (#951, #978)
+- Fixed transparency behavior for several effects (#1184, #1229)
+- Fixed issues with the Soften Portrait effect where the `Softness` and `Lighting` parameters had no effect (#1217)
 
 ## [2.1.2](https://github.com/PintaProject/Pinta/releases/tag/2.1.2) - 2024/04/20
 

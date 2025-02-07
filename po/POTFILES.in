@@ -31,6 +31,7 @@ Pinta.Core/Classes/DocumentHistory.cs
 Pinta.Core/Classes/DocumentLayers.cs
 Pinta.Core/Classes/DocumentSelection.cs
 Pinta.Core/Classes/DocumentWorkspace.cs
+Pinta.Core/Classes/Fraction.cs
 Pinta.Core/Classes/HsvColor.cs
 Pinta.Core/Classes/IExtension.cs
 Pinta.Core/Classes/IToolHandle.cs
@@ -46,7 +47,6 @@ Pinta.Core/Classes/Re-editable/Text/TextEngine.cs
 Pinta.Core/Classes/Re-editable/Text/TextLayout.cs
 Pinta.Core/Classes/Re-editable/Text/TextPosition.cs
 Pinta.Core/Classes/Rectangle.cs
-Pinta.Core/Classes/RgbColor.cs
 Pinta.Core/Classes/ScaleFactor.cs
 Pinta.Core/Classes/Scanline.cs
 Pinta.Core/Classes/SelectionModeHandler.cs
@@ -78,6 +78,7 @@ Pinta.Core/Effects/UserBlendOps.Reflect.cs
 Pinta.Core/Effects/UserBlendOps.Screen.cs
 Pinta.Core/Effects/UserBlendOps.Xor.cs
 Pinta.Core/Effects/UserBlendOps.cs
+Pinta.Core/Enumeration/PixelOffsetEnumeration.cs
 Pinta.Core/Enumerations/Anchor.cs
 Pinta.Core/Enumerations/BlendMode.cs
 Pinta.Core/Enumerations/CursorShape.cs
@@ -98,7 +99,16 @@ Pinta.Core/EventArgs/TextChangedEventArgs.cs
 Pinta.Core/EventArgs/ToolEventArgs.cs
 Pinta.Core/EventArgs/ToolKeyEventArgs.cs
 Pinta.Core/EventArgs/ToolMouseEventArgs.cs
-Pinta.Core/Extensions/CairoExtensions.cs
+Pinta.Core/Extensions/Cairo/CairoExtensions.Blending.cs
+Pinta.Core/Extensions/Cairo/CairoExtensions.Color.cs
+Pinta.Core/Extensions/Cairo/CairoExtensions.ColorType.cs
+Pinta.Core/Extensions/Cairo/CairoExtensions.Core.cs
+Pinta.Core/Extensions/Cairo/CairoExtensions.Drawing.cs
+Pinta.Core/Extensions/Cairo/CairoExtensions.External.cs
+Pinta.Core/Extensions/Cairo/CairoExtensions.Geometry.cs
+Pinta.Core/Extensions/Cairo/CairoExtensions.Patterns.cs
+Pinta.Core/Extensions/Cairo/CairoExtensions.Samples.cs
+Pinta.Core/Extensions/Cairo/CairoExtensions.cs
 Pinta.Core/Extensions/GdkExtensions.cs
 Pinta.Core/Extensions/GdkKey.cs
 Pinta.Core/Extensions/GdkPixbufExtensions.cs
@@ -111,6 +121,7 @@ Pinta.Core/Extensions/Gtk/GtkExtensions.cs
 Pinta.Core/Extensions/NativeImportResolver.cs
 Pinta.Core/Extensions/OtherExtensions.cs
 Pinta.Core/Extensions/PangoExtensions.cs
+Pinta.Core/Extensions/Tiling.cs
 Pinta.Core/Extensions/ToolBarComboBox.cs
 Pinta.Core/Extensions/ToolBoxButton.cs
 Pinta.Core/FriendAssemblies.cs
@@ -180,6 +191,7 @@ Pinta.Effects/Algorithms/LocalHistogram.cs
 Pinta.Effects/Algorithms/PerlinNoise.cs
 Pinta.Effects/Algorithms/Warp.cs
 Pinta.Effects/Classes/ColorGradient.cs
+Pinta.Effects/Classes/EdgeBehavior.cs
 Pinta.Effects/Classes/ErrorDiffusionMatrix.cs
 Pinta.Effects/CoreEffectsExtension.cs
 Pinta.Effects/Dialogs/Effects.AlignmentDialog.cs
@@ -246,6 +258,7 @@ Pinta.Gui.Widgets/Widgets/Canvas/CanvasWindow.cs
 Pinta.Gui.Widgets/Widgets/Canvas/PintaCanvas.cs
 Pinta.Gui.Widgets/Widgets/ColorGradientWidget.cs
 Pinta.Gui.Widgets/Widgets/ColorPanelWidget.cs
+Pinta.Gui.Widgets/Widgets/ColorPickerDialog.cs
 Pinta.Gui.Widgets/Widgets/ComboBoxWidget.cs
 Pinta.Gui.Widgets/Widgets/HScaleSpinButtonWidget.cs
 Pinta.Gui.Widgets/Widgets/HistogramWidget.cs
@@ -343,6 +356,7 @@ Pinta/Actions/View/ImageTabsToggledAction.cs
 Pinta/Actions/View/StatusBarToggledAction.cs
 Pinta/Actions/View/ToolBarToggledAction.cs
 Pinta/Actions/View/ToolBoxToggledAction.cs
+Pinta/Actions/View/ToolWindowsToggledAction.cs
 Pinta/Actions/Window/CloseAllDocumentsAction.cs
 Pinta/Actions/Window/SaveAllDocumentsAction.cs
 Pinta/AddinSetupService.cs

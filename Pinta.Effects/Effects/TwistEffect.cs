@@ -32,15 +32,17 @@ public sealed class TwistEffect : BaseEffect
 
 	private readonly IChromeService chrome;
 	private readonly ILivePreview live_preview;
+	private readonly IWorkspaceService workspace;
 	public TwistEffect (IServiceProvider services)
 	{
 		chrome = services.GetService<IChromeService> ();
 		live_preview = services.GetService<ILivePreview> ();
+		workspace = services.GetService<IWorkspaceService> ();
 		EffectData = new TwistData ();
 	}
 
 	public override Task<bool> LaunchConfiguration ()
-		=> chrome.LaunchSimpleEffectDialog (this);
+		=> chrome.LaunchSimpleEffectDialog (this, workspace);
 
 	// Algorithm Code Ported From PDN
 	protected override void Render (
@@ -51,7 +53,7 @@ public sealed class TwistEffect : BaseEffect
 		TwistSettings settings = CreateSettings ();
 		ReadOnlySpan<ColorBgra> sourceData = source.GetReadOnlyPixelData ();
 		Span<ColorBgra> destinationData = destination.GetPixelData ();
-		foreach (var pixel in Utility.GeneratePixelOffsets (roi, source.GetSize ()))
+		foreach (var pixel in Tiling.GeneratePixelOffsets (roi, source.GetSize ()))
 			destinationData[pixel.memoryOffset] = GetFinalPixelColor (
 				settings,
 				source,
@@ -119,7 +121,7 @@ public sealed class TwistEffect : BaseEffect
 	private TwistSettings CreateSettings ()
 	{
 		RectangleI renderBounds = live_preview.RenderBounds;
-		float preliminaryTwist = Data.Amount;
+		float preliminaryTwist = -Data.Amount;
 		float hw = renderBounds.Width / 2.0f;
 		float hh = renderBounds.Height / 2.0f;
 		return new (
@@ -149,7 +151,7 @@ public sealed class TwistEffect : BaseEffect
 	public sealed class TwistData : EffectData
 	{
 		[Caption ("Amount"), MinimumValue (-100), MaximumValue (100)]
-		public int Amount { get; set; } = 45;
+		public int Amount { get; set; } = 30;
 
 		[Caption ("Antialias"), MinimumValue (0), MaximumValue (5)]
 		public int Antialias { get; set; } = 2;

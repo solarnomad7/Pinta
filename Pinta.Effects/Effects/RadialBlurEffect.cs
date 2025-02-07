@@ -30,16 +30,16 @@ public sealed class RadialBlurEffect : BaseEffect
 	public RadialBlurData Data => (RadialBlurData) EffectData!;  // NRT - Set in constructor
 
 	private readonly IChromeService chrome;
-
+	private readonly IWorkspaceService workspace;
 	public RadialBlurEffect (IServiceProvider services)
 	{
 		chrome = services.GetService<IChromeService> ();
-
+		workspace = services.GetService<IWorkspaceService> ();
 		EffectData = new RadialBlurData ();
 	}
 
 	public override Task<bool> LaunchConfiguration ()
-		=> chrome.LaunchSimpleEffectDialog (this);
+		=> chrome.LaunchSimpleEffectDialog (this, workspace);
 
 	// Algorithm Code Ported From PDN
 
@@ -75,7 +75,7 @@ public sealed class RadialBlurEffect : BaseEffect
 			fsr: fr / n);
 	}
 
-	public override void Render (ImageSurface source, ImageSurface destination, ReadOnlySpan<RectangleI> rois)
+	protected override void Render (ImageSurface source, ImageSurface destination, RectangleI rect)
 	{
 		if (Data.Angle.Degrees == 0) // Copy src to dest
 			return;
@@ -85,12 +85,11 @@ public sealed class RadialBlurEffect : BaseEffect
 		ReadOnlySpan<ColorBgra> sourceData = source.GetReadOnlyPixelData ();
 		Span<ColorBgra> destinationData = destination.GetPixelData ();
 
-		foreach (RectangleI rect in rois)
-			foreach (var pixel in Utility.GeneratePixelOffsets (rect, settings.canvasSize))
-				destinationData[pixel.memoryOffset] = GetFinalPixelColor (
-					settings,
-					sourceData,
-					pixel);
+		foreach (var pixel in Tiling.GeneratePixelOffsets (rect, settings.canvasSize))
+			destinationData[pixel.memoryOffset] = GetFinalPixelColor (
+				settings,
+				sourceData,
+				pixel);
 	}
 
 	private static ColorBgra GetFinalPixelColor (
@@ -104,9 +103,9 @@ public sealed class RadialBlurEffect : BaseEffect
 			X: (pixel.coordinates.X << 16) - settings.fcx,
 			Y: (pixel.coordinates.Y << 16) - settings.fcy);
 
-		int sr = sourcePixel.R * sourcePixel.A;
-		int sg = sourcePixel.G * sourcePixel.A;
-		int sb = sourcePixel.B * sourcePixel.A;
+		int sr = sourcePixel.R;
+		int sg = sourcePixel.G;
+		int sb = sourcePixel.B;
 		int sa = sourcePixel.A;
 		int sc = 1;
 
@@ -126,9 +125,9 @@ public sealed class RadialBlurEffect : BaseEffect
 
 				ColorBgra sample = sourceData[p1.Y * settings.canvasSize.Width + p1.X];
 
-				sr += sample.R * sample.A;
-				sg += sample.G * sample.A;
-				sb += sample.B * sample.A;
+				sr += sample.R;
+				sg += sample.G;
+				sb += sample.B;
 				sa += sample.A;
 
 				++sc;
@@ -142,9 +141,9 @@ public sealed class RadialBlurEffect : BaseEffect
 
 				ColorBgra sample = sourceData[p2.Y * settings.canvasSize.Width + p2.X];
 
-				sr += sample.R * sample.A;
-				sg += sample.G * sample.A;
-				sb += sample.B * sample.A;
+				sr += sample.R;
+				sg += sample.G;
+				sb += sample.B;
 				sa += sample.A;
 
 				++sc;
@@ -154,9 +153,9 @@ public sealed class RadialBlurEffect : BaseEffect
 		return
 			(sa > 0)
 			? ColorBgra.FromBgra (
-				b: Utility.ClampToByte (sb / sa),
-				g: Utility.ClampToByte (sg / sa),
-				r: Utility.ClampToByte (sr / sa),
+				b: Utility.ClampToByte (sb / sc),
+				g: Utility.ClampToByte (sg / sc),
+				r: Utility.ClampToByte (sr / sc),
 				a: Utility.ClampToByte (sa / sc))
 			: ColorBgra.FromUInt32 (0);
 	}

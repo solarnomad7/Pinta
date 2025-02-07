@@ -59,14 +59,16 @@ public sealed class VignetteEffect : BaseEffect
 		=> (VignetteData) EffectData!;  // NRT - Set in constructor
 
 	private readonly IChromeService chrome;
+	private readonly IWorkspaceService workspace;
 	public VignetteEffect (IServiceProvider services)
 	{
 		chrome = services.GetService<IChromeService> ();
+		workspace = services.GetService<IWorkspaceService> ();
 		EffectData = new VignetteData ();
 	}
 
 	public override Task<bool> LaunchConfiguration ()
-		=> chrome.LaunchSimpleEffectDialog (this);
+		=> chrome.LaunchSimpleEffectDialog (this, workspace);
 
 	private sealed record VignetteSettings (
 		Size canvasSize,
@@ -98,7 +100,7 @@ public sealed class VignetteEffect : BaseEffect
 		VignetteSettings settings = CreateSettings (source);
 		ReadOnlySpan<ColorBgra> sourceData = source.GetReadOnlyPixelData ();
 		Span<ColorBgra> destinationData = destination.GetPixelData ();
-		foreach (var pixel in Utility.GeneratePixelOffsets (roi, settings.canvasSize))
+		foreach (var pixel in Tiling.GeneratePixelOffsets (roi, settings.canvasSize))
 			destinationData[pixel.memoryOffset] = GetFinalPixelColor (settings, sourceData, pixel);
 	}
 

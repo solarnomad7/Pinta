@@ -31,7 +31,10 @@ namespace Pinta.Core;
 public sealed class DocumentWorkspace
 {
 	private readonly Document document;
-	private Size view_size;
+
+	private readonly ActionManager actions;
+	private readonly ToolManager tools;
+
 	private enum ZoomType
 	{
 		ZoomIn,
@@ -39,10 +42,17 @@ public sealed class DocumentWorkspace
 		ZoomManually,
 	}
 
-	internal DocumentWorkspace (Document document)
+	internal DocumentWorkspace (
+		ActionManager actions,
+		ToolManager tools,
+		Document document)
 	{
+		this.actions = actions;
+		this.tools = tools;
+
 		this.document = document;
-		History = new DocumentHistory (document);
+
+		History = new DocumentHistory (actions.Edit, document);
 	}
 
 	#region Public Events
@@ -52,6 +62,7 @@ public sealed class DocumentWorkspace
 
 	#region Public Properties
 	public Gtk.DrawingArea Canvas { get; set; } = null!; // NRT - This is set soon after creation
+	public Gtk.Widget CanvasWindow { get; set; } = null!; // NRT - This is set soon after creation
 
 	/// <summary>
 	/// Returns whether the zoomed image fits in the window without requiring scrolling.
@@ -59,10 +70,8 @@ public sealed class DocumentWorkspace
 	public bool ImageViewFitsInWindow {
 		get {
 			Gtk.Viewport view = (Gtk.Viewport) Canvas.Parent!;
-
 			int window_x = view.GetAllocatedWidth ();
 			int window_y = view.GetAllocatedHeight ();
-
 			return ViewSize.Width <= window_x && ViewSize.Height <= window_y;
 		}
 	}
@@ -73,13 +82,12 @@ public sealed class DocumentWorkspace
 	public Size ViewSize {
 		get => view_size;
 		set {
-			if (view_size == value)
-				return;
-
+			if (view_size == value) return;
 			view_size = value;
 			OnViewSizeChanged ();
 		}
 	}
+	private Size view_size;
 
 	public DocumentHistory History { get; }
 
@@ -89,10 +97,8 @@ public sealed class DocumentWorkspace
 	public bool ImageFitsInWindow {
 		get {
 			Gtk.Viewport view = (Gtk.Viewport) Canvas.Parent!;
-
 			int window_x = view.GetAllocatedWidth ();
 			int window_y = view.GetAllocatedHeight ();
-
 			return document.ImageSize.Width <= window_x && document.ImageSize.Height <= window_y;
 		}
 	}
@@ -119,9 +125,9 @@ public sealed class DocumentWorkspace
 
 			Invalidate ();
 
-			if (PintaCore.Tools.CurrentTool?.CursorChangesOnZoom == true) {
+			if (tools.CurrentTool?.CursorChangesOnZoom == true) {
 				//The current tool's cursor changes when the zoom changes.
-				PintaCore.Tools.CurrentTool.SetCursor (PintaCore.Tools.CurrentTool.DefaultCursor);
+				tools.CurrentTool.SetCursor (tools.CurrentTool.DefaultCursor);
 			}
 		}
 	}
@@ -132,8 +138,7 @@ public sealed class DocumentWorkspace
 	private static Size CoercedToPositive (Size baseSize)
 		=> new (
 			Width: Math.Max (baseSize.Width, 1),
-			Height: Math.Max (baseSize.Height, 1)
-		);
+			Height: Math.Max (baseSize.Height, 1));
 
 	private static Size GetNewViewSize (Size imageSize, double scale)
 	{
@@ -158,11 +163,11 @@ public sealed class DocumentWorkspace
 	/// </param>
 	public void Invalidate (RectangleI canvasRect)
 	{
-		var canvasTopLeft = new PointD (canvasRect.Left, canvasRect.Top);
-		var canvasBtmRight = new PointD (canvasRect.Right + 1, canvasRect.Bottom + 1);
+		PointD canvasTopLeft = new PointD (canvasRect.Left, canvasRect.Top);
+		PointD canvasBtmRight = new PointD (canvasRect.Right + 1, canvasRect.Bottom + 1);
 
-		var winTopLeft = CanvasPointToView (canvasTopLeft);
-		var winBtmRight = CanvasPointToView (canvasBtmRight);
+		PointD winTopLeft = CanvasPointToView (canvasTopLeft);
+		PointD winBtmRight = CanvasPointToView (canvasBtmRight);
 
 		RectangleI winRect = CairoExtensions.PointsToRectangle (winTopLeft, winBtmRight).ToInt ();
 
@@ -176,6 +181,19 @@ public sealed class DocumentWorkspace
 	public void InvalidateWindowRect (RectangleI windowRect)
 	{
 		OnCanvasInvalidated (new CanvasInvalidatedEventArgs (windowRect));
+	}
+
+	/// <summary>
+	/// Grabs focus to the canvas widget. This can be used to avoid leaving focus in
+	/// toolbar widgets, for example.
+	/// </summary>
+	public void GrabFocusToCanvas ()
+	{
+		bool gained_focus = CanvasWindow.GrabFocus ();
+		// Log a warning if something went wrong, e.g. there is a non-focusable widget
+		// in the hierarchy.
+		if (!gained_focus)
+			Console.Error.WriteLine ("Failed to gain focus on the canvas widget!");
 	}
 
 	/// <summary>
@@ -229,9 +247,9 @@ public sealed class DocumentWorkspace
 	/// </param>
 	public PointD ViewPointToCanvas (PointD viewPoint)
 	{
-		var sf = new ScaleFactor (document.ImageSize.Width, ViewSize.Width);
-		var pt = sf.ScalePoint (viewPoint - Offset);
-		return new PointD (pt.X, pt.Y);
+		Fraction<int> sf = ScaleFactor.CreateClamped (document.ImageSize.Width, ViewSize.Width);
+		PointD pt = sf.ScalePoint (viewPoint - Offset);
+		return new (pt.X, pt.Y);
 	}
 
 	/// <summary>
@@ -239,9 +257,11 @@ public sealed class DocumentWorkspace
 	/// </summary>
 	public PointD CanvasPointToView (PointD canvasPoint)
 	{
-		var sf = new ScaleFactor (document.ImageSize.Width, ViewSize.Width);
-		var pt = sf.UnscalePoint (canvasPoint);
-		return new PointD (pt.X + Offset.X, pt.Y + Offset.Y);
+		Fraction<int> sf = ScaleFactor.CreateClamped (document.ImageSize.Width, ViewSize.Width);
+		PointD pt = sf.UnscalePoint (canvasPoint);
+		return new (
+			X: pt.X + Offset.X,
+			Y: pt.Y + Offset.Y);
 	}
 
 	public void ZoomIn ()
@@ -281,20 +301,17 @@ public sealed class DocumentWorkspace
 
 	public void ZoomToCanvasRectangle (RectangleD rect)
 	{
-		double ratio;
+		double ratio =
+			(document.ImageSize.Width / rect.Width <= document.ImageSize.Height / rect.Height)
+			? document.ImageSize.Width / rect.Width
+			: document.ImageSize.Height / rect.Height;
 
-		if (document.ImageSize.Width / rect.Width <= document.ImageSize.Height / rect.Height)
-			ratio = document.ImageSize.Width / rect.Width;
-		else
-			ratio = document.ImageSize.Height / rect.Height;
-
-		PintaCore.Actions.View.ZoomComboBox.ComboBox.GetEntry ().SetText (ViewActions.ToPercent (ratio));
+		actions.View.ZoomComboBox.ComboBox.GetEntry ().SetText (ViewActions.ToPercent (ratio));
 		GLib.MainContext.Default ().Iteration (false); //Force update of scrollbar upper before recenter
 
 		PointD newPoint = new (
 			X: rect.X + rect.Width / 2,
-			Y: rect.Y + rect.Height / 2
-		);
+			Y: rect.Y + rect.Height / 2);
 
 		RecenterView (newPoint);
 	}
@@ -321,12 +338,12 @@ public sealed class DocumentWorkspace
 			return; //Can't zoom in past a 1x1 px canvas
 
 
-		if (!ViewActions.TryParsePercent (PintaCore.Actions.View.ZoomComboBox.ComboBox.GetActiveText ()!, out var zoom))
+		if (!ViewActions.TryParsePercent (actions.View.ZoomComboBox.ComboBox.GetActiveText ()!, out var zoom))
 			zoom = Scale * 100;
 
 		zoom = Math.Min (zoom, 3600);
 
-		PintaCore.Actions.View.SuspendZoomUpdate ();
+		actions.View.SuspendZoomUpdate ();
 
 		Gtk.Viewport view = (Gtk.Viewport) Canvas.Parent!;
 
@@ -337,10 +354,10 @@ public sealed class DocumentWorkspace
 				view.Vadjustment!.Value + (view.Vadjustment.PageSize / 2.0));
 		}
 
-		var scroll_offset_x = center_point.Value.X - view.Hadjustment!.Value - Offset.X;
-		var scroll_offset_y = center_point.Value.Y - view.Vadjustment!.Value - Offset.Y;
+		double scroll_offset_x = center_point.Value.X - view.Hadjustment!.Value - Offset.X;
+		double scroll_offset_y = center_point.Value.Y - view.Vadjustment!.Value - Offset.Y;
 
-		var canvas_point = ViewPointToCanvas (center_point.Value);
+		PointD canvas_point = ViewPointToCanvas (center_point.Value);
 
 		if (zoomType == ZoomType.ZoomIn || zoomType == ZoomType.ZoomOut) {
 
@@ -355,7 +372,7 @@ public sealed class DocumentWorkspace
 					case ZoomType.ZoomIn:
 
 						if (zoomInList == Translations.GetString ("Window") || zoom_level <= zoom) {
-							PintaCore.Actions.View.ZoomComboBox.ComboBox.Active = i - 1;
+							actions.View.ZoomComboBox.ComboBox.Active = i - 1;
 							return true;
 						}
 
@@ -367,7 +384,7 @@ public sealed class DocumentWorkspace
 							return true;
 
 						if (zoom_level < zoom) {
-							PintaCore.Actions.View.ZoomComboBox.ComboBox.Active = i;
+							actions.View.ZoomComboBox.ComboBox.Active = i;
 							return true;
 						}
 
@@ -376,7 +393,7 @@ public sealed class DocumentWorkspace
 				return false;
 			}
 
-			foreach (string item in PintaCore.Actions.View.ZoomCollection) {
+			foreach (string item in actions.View.ZoomCollection) {
 
 				if (UpdateZoomLevel (item))
 					break;
@@ -385,7 +402,7 @@ public sealed class DocumentWorkspace
 			}
 		}
 
-		PintaCore.Actions.View.UpdateCanvasScale ();
+		actions.View.UpdateCanvasScale ();
 
 		// Quick fix : need to manually update Upper limit because the value is not changing after updating the canvas scale.
 		// TODO : I think there is an event need to be fired so that those values updated automatically.
@@ -395,11 +412,11 @@ public sealed class DocumentWorkspace
 		// Scroll so that the canvas position under 'center_point' is still the same after zooming.
 		// Note that the canvas widget might not have resized yet, so using Offset is important for taking
 		// the size difference into account.
-		var new_center_point = CanvasPointToView (canvas_point);
+		PointD new_center_point = CanvasPointToView (canvas_point);
 		view.Hadjustment.Value = new_center_point.X - scroll_offset_x - Offset.X;
 		view.Vadjustment.Value = new_center_point.Y - scroll_offset_y - Offset.Y;
 
-		PintaCore.Actions.View.ResumeZoomUpdate ();
+		actions.View.ResumeZoomUpdate ();
 	}
 	#endregion
 }

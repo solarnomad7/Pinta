@@ -33,14 +33,17 @@ namespace Pinta.Actions;
 
 public sealed class RotateZoomLayerAction : IActionHandler
 {
+	private readonly ChromeManager chrome;
 	private readonly LayerActions layers;
 	private readonly WorkspaceManager workspace;
 	private readonly ToolManager tools;
 	internal RotateZoomLayerAction (
+		ChromeManager chrome,
 		LayerActions layers,
 		WorkspaceManager workspace,
 		ToolManager tools)
 	{
+		this.chrome = chrome;
 		this.layers = layers;
 		this.workspace = workspace;
 		this.tools = tools;
@@ -56,17 +59,19 @@ public sealed class RotateZoomLayerAction : IActionHandler
 		layers.RotateZoom.Activated -= Activated;
 	}
 
-	private void Activated (object sender, EventArgs e)
+	private async void Activated (object sender, EventArgs e)
 	{
 		// TODO - allow the layer to be zoomed in or out
 
 		RotateZoomData data = new ();
 
-		SimpleEffectDialog dialog = new (
+		using SimpleEffectDialog dialog = new (
+			chrome.MainWindow,
 			Translations.GetString ("Rotate / Zoom Layer"),
 			Resources.Icons.LayerRotateZoom,
 			data,
-			new PintaLocalizer ());
+			new PintaLocalizer (),
+			workspace);
 
 		// When parameters are modified, update the display transform of the layer.
 		dialog.EffectDataChanged += (o, args) => {
@@ -76,15 +81,15 @@ public sealed class RotateZoomLayerAction : IActionHandler
 			workspace.Invalidate ();
 		};
 
-		dialog.OnResponse += (_, args) => {
-			ClearLivePreview ();
-			if (args.ResponseId == (int) Gtk.ResponseType.Ok && !data.IsDefault)
-				ApplyTransform (data);
+		Gtk.ResponseType response = await dialog.RunAsync ();
 
-			dialog.Destroy ();
-		};
+		dialog.Destroy ();
 
-		dialog.Present ();
+		ClearLivePreview ();
+
+		if (response != Gtk.ResponseType.Ok || data.IsDefault) return;
+
+		ApplyTransform (data);
 	}
 
 	private void ClearLivePreview ()

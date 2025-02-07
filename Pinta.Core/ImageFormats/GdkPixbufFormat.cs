@@ -25,6 +25,7 @@
 // THE SOFTWARE.
 
 using System;
+using Cairo;
 using GdkPixbuf;
 
 namespace Pinta.Core;
@@ -45,11 +46,17 @@ public class GdkPixbufFormat : IImageImporter, IImageExporter
 
 		Size imageSize = new (effectiveBuffer.Width, effectiveBuffer.Height);
 
-		Document newDocument = new (imageSize, file, filetype);
+		Document newDocument = new (
+			PintaCore.Actions,
+			PintaCore.Tools,
+			PintaCore.Workspace,
+			imageSize,
+			file,
+			filetype);
 
 		Layer layer = newDocument.Layers.AddNewLayer (file.GetDisplayName ());
 
-		using Cairo.Context g = new (layer.Surface);
+		using Context g = new (layer.Surface);
 
 		g.DrawPixbuf (effectiveBuffer, PointD.Zero);
 
@@ -67,23 +74,30 @@ public class GdkPixbufFormat : IImageImporter, IImageExporter
 		}
 	}
 
-	protected virtual void DoSave (Pixbuf pb, Gio.File file, string fileType, Gtk.Window parent)
+	protected virtual void DoSave (
+		Pixbuf pb,
+		Gio.File file,
+		string fileType,
+		Gtk.Window parent)
 	{
 		using Gio.OutputStream stream = file.Replace ();
 		try {
 			pb.SaveToStreamv (stream, fileType,
-					optionKeys: Array.Empty<string> (),
-					optionValues: Array.Empty<string> (),
+					optionKeys: [],
+					optionValues: [],
 					cancellable: null);
 		} finally {
 			stream.Close (null);
 		}
 	}
 
-	public void Export (Document document, Gio.File file, Gtk.Window parent)
+	public void Export (
+		Document document,
+		Gio.File file,
+		Gtk.Window parent)
 	{
-		Cairo.ImageSurface surf = document.GetFlattenedImage ();
-		using Pixbuf pb = surf.ToPixbuf ();
+		using ImageSurface flattenedImage = document.GetFlattenedImage ();
+		using Pixbuf pb = flattenedImage.ToPixbuf ();
 		DoSave (pb, file, filetype, parent);
 	}
 }

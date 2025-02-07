@@ -39,6 +39,7 @@ public sealed class ViewActions
 	public Command ActualSize { get; }
 	public ToggleCommand ToolBar { get; }
 	public ToggleCommand ImageTabs { get; }
+	public ToggleCommand ToolWindows { get; }
 	public Command EditCanvasGrid { get; }
 	public ToggleCommand StatusBar { get; }
 	public ToggleCommand ToolBox { get; }
@@ -72,6 +73,7 @@ public sealed class ViewActions
 		ActualSize = new Command ("ActualSize", Translations.GetString ("Normal Size"), null, Resources.StandardIcons.ZoomOriginal);
 		ToolBar = new ToggleCommand ("Toolbar", Translations.GetString ("Toolbar"), null, null);
 		ImageTabs = new ToggleCommand ("ImageTabs", Translations.GetString ("Image Tabs"), null, null);
+		ToolWindows = new ToggleCommand ("ToolWindows", Translations.GetString ("Tool Windows"), null, null);
 		EditCanvasGrid = new Command ("EditCanvasGrid", Translations.GetString ("Canvas Grid..."), null, Resources.Icons.ViewGrid);
 		StatusBar = new ToggleCommand ("Statusbar", Translations.GetString ("Status Bar"), null, null);
 		ToolBox = new ToggleCommand ("ToolBox", Translations.GetString ("Tool Box"), null, null);
@@ -86,6 +88,7 @@ public sealed class ViewActions
 		// The toolbar is shown by default.
 		ToolBar.Value = true;
 		ImageTabs.Value = true;
+		ToolWindows.Value = true;
 		StatusBar.Value = true;
 		ToolBox.Value = true;
 
@@ -149,6 +152,7 @@ public sealed class ViewActions
 		show_hide_menu.AppendItem (StatusBar.CreateMenuItem ());
 		show_hide_menu.AppendItem (ToolBox.CreateMenuItem ());
 		show_hide_menu.AppendItem (ImageTabs.CreateMenuItem ());
+		show_hide_menu.AppendItem (ToolWindows.CreateMenuItem ());
 		if (mainToolbarPresent) show_hide_menu.AppendItem (ToolBar.CreateMenuItem ());
 
 		Gio.Menu show_hide_section = Gio.Menu.New ();
@@ -165,9 +169,9 @@ public sealed class ViewActions
 		Gio.Menu color_scheme_section = Gio.Menu.New ();
 		color_scheme_section.AppendSubmenu (Translations.GetString ("Color Scheme"), color_scheme_menu);
 
-		app.AddAccelAction (ZoomIn, new[] { "<Primary>plus", "<Primary>equal", "equal", "<Primary>KP_Add", "KP_Add" });
-		app.AddAccelAction (ZoomOut, new[] { "<Primary>minus", "<Primary>underscore", "minus", "<Primary>KP_Subtract", "KP_Subtract" });
-		app.AddAccelAction (ActualSize, new[] { "<Primary>0", "<Primary><Shift>A" });
+		app.AddAccelAction (ZoomIn, ["<Primary>plus", "<Primary>equal", "equal", "<Primary>KP_Add", "KP_Add"]);
+		app.AddAccelAction (ZoomOut, ["<Primary>minus", "<Primary>underscore", "minus", "<Primary>KP_Subtract", "KP_Subtract"]);
+		app.AddAccelAction (ActualSize, ["<Primary>0", "<Primary><Shift>A"]);
 		app.AddAccelAction (ZoomToWindow, "<Primary>B");
 		app.AddAccelAction (Fullscreen, "F11");
 		app.AddAction (EditCanvasGrid);
@@ -177,6 +181,7 @@ public sealed class ViewActions
 		app.AddAction (StatusBar);
 		app.AddAction (ToolBox);
 		app.AddAction (ImageTabs);
+		app.AddAction (ToolWindows);
 		app.AddAction (ColorScheme);
 
 		menu.AppendSection (null, zoom_section);

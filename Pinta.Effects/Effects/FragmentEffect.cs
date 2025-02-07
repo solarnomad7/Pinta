@@ -37,15 +37,16 @@ public sealed class FragmentEffect : BaseEffect
 		=> (FragmentData) EffectData!;  // NRT - Set in constructor
 
 	private readonly IChromeService chrome;
-
+	private readonly IWorkspaceService workspace;
 	public FragmentEffect (IServiceProvider services)
 	{
 		chrome = services.GetService<IChromeService> ();
+		workspace = services.GetService<IWorkspaceService> ();
 		EffectData = new FragmentData ();
 	}
 
 	public override Task<bool> LaunchConfiguration ()
-		=> chrome.LaunchSimpleEffectDialog (this);
+		=> chrome.LaunchSimpleEffectDialog (this, workspace);
 
 	// Algorithm Code Ported From PDN
 
@@ -76,7 +77,7 @@ public sealed class FragmentEffect : BaseEffect
 		FragmentSettings settings = CreateSettings (source);
 		ReadOnlySpan<ColorBgra> sourceData = source.GetReadOnlyPixelData ();
 		Span<ColorBgra> dst_data = destination.GetPixelData ();
-		foreach (var pixel in Utility.GeneratePixelOffsets (roi, settings.sourceSize))
+		foreach (var pixel in Tiling.GeneratePixelOffsets (roi, settings.sourceSize))
 			dst_data[pixel.memoryOffset] = GetFinalPixelColor (
 				settings,
 				source,

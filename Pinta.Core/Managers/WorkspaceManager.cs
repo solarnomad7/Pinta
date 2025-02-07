@@ -40,6 +40,7 @@ public interface IWorkspaceService
 	Document ActiveDocument { get; }
 	DocumentWorkspace ActiveWorkspace { get; }
 	bool HasOpenDocuments { get; }
+	Size ImageSize { get; }
 
 	SelectionModeHandler SelectionHandler { get; }
 
@@ -137,7 +138,7 @@ public static class WorkspaceServiceExtensions
 		Size imageSize,
 		Color backgroundColor)
 	{
-		Document doc = new (imageSize);
+		Document doc = new (PintaCore.Actions, PintaCore.Tools, PintaCore.Workspace, imageSize);
 		doc.Workspace.ViewSize = imageSize;
 		workspace.ActivateDocument (doc, actions);
 
@@ -169,7 +170,7 @@ public sealed class WorkspaceManager : IWorkspaceService
 		ChromeManager chromeManager,
 		ImageConverterManager imageFormats)
 	{
-		open_documents = new List<Document> ();
+		open_documents = [];
 		OpenDocuments = new ReadOnlyCollection<Document> (open_documents);
 		SelectionHandler = new SelectionModeHandler (systemManager);
 

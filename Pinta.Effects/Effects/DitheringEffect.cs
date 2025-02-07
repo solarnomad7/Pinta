@@ -18,15 +18,16 @@ public sealed class DitheringEffect : BaseEffect
 	public override bool IsTileable => false;
 
 	private readonly IChromeService chrome;
-
+	private readonly IWorkspaceService workspace;
 	public DitheringEffect (IServiceProvider services)
 	{
 		chrome = services.GetService<IChromeService> ();
+		workspace = services.GetService<IWorkspaceService> ();
 		EffectData = new DitheringData ();
 	}
 
 	public override Task<bool> LaunchConfiguration ()
-		=> chrome.LaunchSimpleEffectDialog (this);
+		=> chrome.LaunchSimpleEffectDialog (this, workspace);
 
 	private sealed record DitheringSettings (
 		ErrorDiffusionMatrix diffusionMatrix,
@@ -56,7 +57,7 @@ public sealed class DitheringEffect : BaseEffect
 			}
 		}
 
-		foreach (var pixel in Utility.GeneratePixelOffsets (roi, dest.GetSize ())) {
+		foreach (var pixel in Tiling.GeneratePixelOffsets (roi, dest.GetSize ())) {
 
 			ColorBgra originalPixel = dst_data[pixel.memoryOffset];
 			ColorBgra closestColor = FindClosestPaletteColor (settings.palette, originalPixel);

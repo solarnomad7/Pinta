@@ -89,7 +89,7 @@ public sealed class TextTool : BaseTool
 		=> Pinta.Resources.Icons.ToolText;
 
 	public override Gdk.Key ShortcutKey
-		=> Gdk.Key.T;
+		=> new (Gdk.Constants.KEY_T);
 
 	public override int Priority
 		=> 35;
@@ -97,8 +97,7 @@ public sealed class TextTool : BaseTool
 	public override string StatusBarText
 		=> Translations.GetString ("Left click to place cursor, then type desired text. Text color is primary color.");
 
-	public override Gdk.Cursor DefaultCursor
-		=> GdkExtensions.CursorFromName (Pinta.Resources.StandardCursors.Text);
+	public override Gdk.Cursor DefaultCursor { get; }
 
 	protected override bool ShowAntialiasingButton => true;
 
@@ -119,6 +118,8 @@ public sealed class TextTool : BaseTool
 		im_context.OnPreeditEnd += OnPreeditEnd;
 
 		layout = new TextLayout ();
+
+		DefaultCursor = GdkExtensions.CursorFromName (Pinta.Resources.StandardCursors.Text);
 	}
 	#endregion
 
@@ -295,14 +296,6 @@ public sealed class TextTool : BaseTool
 		outline_width.Visible = outline_width_label.Visible = outline_sep.Visible = StrokeText;
 
 		UpdateFont ();
-
-		if (workspace.HasOpenDocuments) {
-			//Make sure the event handler is never added twice.
-			workspace.ActiveDocument.LayerCloned -= FinalizeText;
-
-			//When an ImageSurface is Cloned, finalize the re-editable text (if applicable).
-			workspace.ActiveDocument.LayerCloned += FinalizeText;
-		}
 	}
 
 	protected override void OnSaveSettings (ISettingsService settings)
@@ -334,7 +327,7 @@ public sealed class TextTool : BaseTool
 	private void HandleFontChanged (object? sender, EventArgs e)
 	{
 		if (workspace.HasOpenDocuments)
-			workspace.ActiveDocument.Workspace.Canvas.GrabFocus ();
+			workspace.ActiveDocument.Workspace.GrabFocusToCanvas ();
 
 		UpdateFont ();
 	}
@@ -352,6 +345,7 @@ public sealed class TextTool : BaseTool
 
 	private void HandlePintaCorePalettePrimaryColorChanged (object? sender, EventArgs e)
 	{
+		UpdateTextEngineColor ();
 		if (is_editing || (workspace.HasOpenDocuments && CurrentTextEngine.State == TextMode.NotFinalized))
 			RedrawText (is_editing, true);
 	}
@@ -432,6 +426,14 @@ public sealed class TextTool : BaseTool
 
 		if (is_editing || (workspace.HasOpenDocuments && CurrentTextEngine.State == TextMode.NotFinalized))
 			RedrawText (is_editing, true);
+	}
+
+	private void UpdateTextEngineColor ()
+	{
+		if (PintaCore.Workspace.HasOpenDocuments) {
+			CurrentTextEngine.PrimaryColor = palette.PrimaryColor;
+			CurrentTextEngine.SecondaryColor = palette.SecondaryColor;
+		}
 	}
 
 	private int OutlineWidth
@@ -706,52 +708,52 @@ public sealed class TextTool : BaseTool
 				// Assume that we are going to handle the key
 				keyHandled = true;
 
-				switch (e.Key) {
-					case Gdk.Key.BackSpace:
+				switch (e.Key.Value) {
+					case Gdk.Constants.KEY_BackSpace:
 						CurrentTextEngine.PerformBackspace ();
 						break;
 
-					case Gdk.Key.Delete:
+					case Gdk.Constants.KEY_Delete:
 						CurrentTextEngine.PerformDelete ();
 						break;
 
-					case Gdk.Key.KP_Enter:
-					case Gdk.Key.Return:
+					case Gdk.Constants.KEY_KP_Enter:
+					case Gdk.Constants.KEY_Return:
 						CurrentTextEngine.PerformEnter ();
 						break;
 
-					case Gdk.Key.Left:
+					case Gdk.Constants.KEY_Left:
 						CurrentTextEngine.PerformLeft (e.IsControlPressed, e.IsShiftPressed);
 						break;
 
-					case Gdk.Key.Right:
+					case Gdk.Constants.KEY_Right:
 						CurrentTextEngine.PerformRight (e.IsControlPressed, e.IsShiftPressed);
 						break;
 
-					case Gdk.Key.Up:
+					case Gdk.Constants.KEY_Up:
 						CurrentTextEngine.PerformUp (e.IsShiftPressed);
 						break;
 
-					case Gdk.Key.Down:
+					case Gdk.Constants.KEY_Down:
 						CurrentTextEngine.PerformDown (e.IsShiftPressed);
 						break;
 
-					case Gdk.Key.Home:
+					case Gdk.Constants.KEY_Home:
 						CurrentTextEngine.PerformHome (e.IsControlPressed, e.IsShiftPressed);
 						break;
 
-					case Gdk.Key.End:
+					case Gdk.Constants.KEY_End:
 						CurrentTextEngine.PerformEnd (e.IsControlPressed, e.IsShiftPressed);
 						break;
 
-					case Gdk.Key.Next:
-					case Gdk.Key.Prior:
+					case Gdk.Constants.KEY_Next:
+					case Gdk.Constants.KEY_Prior:
 						break;
 
-					case Gdk.Key.Escape:
+					case Gdk.Constants.KEY_Escape:
 						StopEditing (false);
 						return true;
-					case Gdk.Key.Insert:
+					case Gdk.Constants.KEY_Insert:
 						if (e.IsShiftPressed) {
 							CurrentTextEngine.PerformPaste (GdkExtensions.GetDefaultClipboard ()).Wait ();
 						} else if (e.IsControlPressed) {
@@ -760,7 +762,7 @@ public sealed class TextTool : BaseTool
 						break;
 					default:
 						if (e.IsControlPressed) {
-							if (e.Key == Gdk.Key.z) {
+							if (e.Key.Value == Gdk.Constants.KEY_z) {
 								//Ctrl + Z for undo while editing.
 								OnHandleUndo (document);
 
@@ -768,16 +770,16 @@ public sealed class TextTool : BaseTool
 									workspace.ActiveDocument.History.Undo ();
 
 								return true;
-							} else if (e.Key == Gdk.Key.i) {
+							} else if (e.Key.Value == Gdk.Constants.KEY_i) {
 								italic_btn.Toggle ();
 								UpdateFont ();
-							} else if (e.Key == Gdk.Key.b) {
+							} else if (e.Key.Value == Gdk.Constants.KEY_b) {
 								bold_btn.Toggle ();
 								UpdateFont ();
-							} else if (e.Key == Gdk.Key.u) {
+							} else if (e.Key.Value == Gdk.Constants.KEY_u) {
 								underscore_btn.Toggle ();
 								UpdateFont ();
-							} else if (e.Key == Gdk.Key.a) {
+							} else if (e.Key.Value == Gdk.Constants.KEY_a) {
 								// Select all of the text.
 								CurrentTextEngine.PerformHome (false, false);
 								CurrentTextEngine.PerformEnd (true, true);
@@ -874,6 +876,10 @@ public sealed class TextTool : BaseTool
 
 	private void StartEditing ()
 	{
+		// Ensure we have an event handler added to finalize re-editable text for the document if the layer is cloned.
+		workspace.ActiveDocument.LayerCloned -= FinalizeText;
+		workspace.ActiveDocument.LayerCloned += FinalizeText;
+
 		is_editing = true;
 
 		im_context.SetClientWidget (workspace.ActiveWorkspace.Canvas);
@@ -889,6 +895,9 @@ public sealed class TextTool : BaseTool
 
 		//Store the previous state of the Text Engine.
 		undo_engine = CurrentTextEngine.Clone ();
+
+		//Update Text Engine to use current colors of color palette
+		UpdateTextEngineColor ();
 
 		//Stop ignoring any Surface.Clone calls from this point on.
 		ignore_clone_finalizations = false;
@@ -1011,14 +1020,14 @@ public sealed class TextTool : BaseTool
 
 		g.MoveTo (CurrentTextEngine.Origin.X, CurrentTextEngine.Origin.Y);
 
-		g.SetSourceColor (palette.PrimaryColor);
+		g.SetSourceColor (CurrentTextEngine.PrimaryColor);
 
 		//Fill in background
 		if (BackgroundFill) {
 			using Cairo.Context g2 = new (surf);
 			selection?.Clip (g2);
 
-			g2.FillRectangle (CurrentTextLayout.GetLayoutBounds ().ToDouble (), palette.SecondaryColor);
+			g2.FillRectangle (CurrentTextLayout.GetLayoutBounds ().ToDouble (), CurrentTextEngine.SecondaryColor);
 		}
 
 		// Draw the text
@@ -1026,13 +1035,13 @@ public sealed class TextTool : BaseTool
 			PangoCairo.Functions.ShowLayout (g, CurrentTextLayout.Layout);
 
 		if (FillText && StrokeText) {
-			g.SetSourceColor (palette.SecondaryColor);
+			g.SetSourceColor (CurrentTextEngine.SecondaryColor);
 			g.LineWidth = OutlineWidth;
 
 			PangoCairo.Functions.LayoutPath (g, CurrentTextLayout.Layout);
 			g.Stroke ();
 		} else if (StrokeText) {
-			g.SetSourceColor (palette.PrimaryColor);
+			g.SetSourceColor (CurrentTextEngine.PrimaryColor);
 			g.LineWidth = OutlineWidth;
 
 			PangoCairo.Functions.LayoutPath (g, CurrentTextLayout.Layout);
@@ -1042,7 +1051,7 @@ public sealed class TextTool : BaseTool
 		if (showCursor) {
 
 			var loc = CurrentTextLayout.GetCursorLocation ();
-			var color = palette.PrimaryColor;
+			var color = CurrentTextEngine.PrimaryColor;
 
 			g.DrawLine (
 				new PointD (loc.X, loc.Y),
@@ -1070,7 +1079,7 @@ public sealed class TextTool : BaseTool
 			g.SetSourceColor (new Cairo.Color (1, 1, 1));
 			g.StrokePreserve ();
 
-			g.SetDash (new double[] { 2, 4 }, 0);
+			g.SetDash ([2, 4], 0);
 			g.SetSourceColor (new Cairo.Color (1, .1, .2));
 
 			g.Stroke ();

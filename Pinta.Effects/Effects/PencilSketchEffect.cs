@@ -36,10 +36,11 @@ public sealed class PencilSketchEffect : BaseEffect
 	public PencilSketchData Data => (PencilSketchData) EffectData!;  // NRT - Set in constructor
 
 	private readonly IChromeService chrome;
-
+	private readonly IWorkspaceService workspace;
 	public PencilSketchEffect (IServiceProvider services)
 	{
 		chrome = services.GetService<IChromeService> ();
+		workspace = services.GetService<IWorkspaceService> ();
 
 		EffectData = new PencilSketchData ();
 
@@ -51,7 +52,7 @@ public sealed class PencilSketchEffect : BaseEffect
 	}
 
 	public override Task<bool> LaunchConfiguration ()
-		=> chrome.LaunchSimpleEffectDialog (this);
+		=> chrome.LaunchSimpleEffectDialog (this, workspace);
 
 	#region Algorithm Code Ported From PDN
 	public override void Render (ImageSurface src, ImageSurface dest, ReadOnlySpan<RectangleI> rois)
@@ -72,7 +73,7 @@ public sealed class PencilSketchEffect : BaseEffect
 		Size canvasSize = src.GetSize ();
 
 		foreach (RectangleI roi in rois) {
-			foreach (var pixel in Utility.GeneratePixelOffsets (roi, canvasSize)) {
+			foreach (var pixel in Tiling.GeneratePixelOffsets (roi, canvasSize)) {
 				ColorBgra srcGrey = desaturate_op.Apply (src_data[pixel.memoryOffset]);
 				dst_data[pixel.memoryOffset] = color_dodge_op.Apply (srcGrey, dst_data[pixel.memoryOffset]);
 			}

@@ -18,7 +18,7 @@ namespace Pinta.Effects;
 public sealed class MandelbrotFractalEffect : BaseEffect
 {
 	public override string Icon
-		=> Pinta.Resources.Icons.EffectsRenderMandelbrotFractal;
+		=> Resources.Icons.EffectsRenderMandelbrotFractal;
 
 	public sealed override bool IsTileable
 		=> true;
@@ -35,49 +35,30 @@ public sealed class MandelbrotFractalEffect : BaseEffect
 	public MandelbrotFractalData Data
 		=> (MandelbrotFractalData) EffectData!;  // NRT - Set in constructor
 
-	private readonly IPaletteService palette;
 	private readonly IChromeService chrome;
-
+	private readonly IPaletteService palette;
+	private readonly IWorkspaceService workspace;
 	public MandelbrotFractalEffect (IServiceProvider services)
 	{
 		chrome = services.GetService<IChromeService> ();
-		invert_effect = new (services);
 		palette = services.GetService<IPaletteService> ();
+		workspace = services.GetService<IWorkspaceService> ();
+		invert_effect = new (services);
 		EffectData = new MandelbrotFractalData ();
 	}
 
 	public override Task<bool> LaunchConfiguration ()
-		=> chrome.LaunchSimpleEffectDialog (this);
+		=> chrome.LaunchSimpleEffectDialog (this, workspace);
 
-	#region Algorithm Code Ported From PDN
-
-	private const double Max = 100000;
-
-	private static readonly double inv_log_max = 1.0 / Math.Log (Max);
+	// Algorithm Code Ported From PDN
 
 	private static readonly PointD offset_basis = new (X: -0.7, Y: -0.29);
 
 	private readonly InvertColorsEffect invert_effect;
 
-	private static double Mandelbrot (double r, double i, int factor)
-	{
-		const int MAX_ITERATIONS = 1024;
-		int c = 0;
-		PointD p = new (0, 0);
-		while ((c * factor) < MAX_ITERATIONS && Utility.MagnitudeSquared (p) < Max) {
-			p = NextLocation (p, r, i);
-			++c;
-		}
-		return c - Math.Log (Utility.MagnitudeSquared (p)) * inv_log_max;
-	}
-
-	private static PointD NextLocation (PointD p, double r, double i)
-	{
-		double t = p.X;
-		double x = p.X * p.X - p.Y * p.Y + r;
-		double y = 2 * t * p.Y + i;
-		return new (x, y);
-	}
+	private static readonly Mandelbrot fractal = new (
+		maxIterations: 1024,
+		maxSquared: 100_000);
 
 	private sealed record MandelbrotSettings (
 		Size canvasSize,
@@ -127,16 +108,15 @@ public sealed class MandelbrotFractalEffect : BaseEffect
 		);
 	}
 
-	public override void Render (ImageSurface src, ImageSurface dst, ReadOnlySpan<RectangleI> rois)
+	protected override void Render (ImageSurface src, ImageSurface dst, RectangleI roi)
 	{
 		MandelbrotSettings settings = CreateSettings (dst);
 		Span<ColorBgra> dst_data = dst.GetPixelData ();
-		foreach (RectangleI rect in rois)
-			foreach (var pixel in Utility.GeneratePixelOffsets (rect, settings.canvasSize))
-				dst_data[pixel.memoryOffset] = GetPixelColor (settings, pixel.coordinates);
+		foreach (var pixel in Tiling.GeneratePixelOffsets (roi, settings.canvasSize))
+			dst_data[pixel.memoryOffset] = GetPixelColor (settings, pixel.coordinates);
 
 		if (settings.invertColors)
-			invert_effect.Render (dst, dst, rois);
+			invert_effect.Render (dst, dst, [roi]);
 	}
 
 	private static ColorBgra GetPixelColor (MandelbrotSettings settings, PointI target)
@@ -163,7 +143,7 @@ public sealed class MandelbrotFractalEffect : BaseEffect
 			double rotatedU = radius * Math.Cos (thetaP);
 			double rotatedV = radius * Math.Sin (thetaP);
 
-			double m = Mandelbrot (
+			double m = fractal.Compute (
 				r: (rotatedU * settings.invZoom) + offset_basis.X,
 				i: (rotatedV * settings.invZoom) + offset_basis.Y,
 				factor: settings.factor);
@@ -187,7 +167,6 @@ public sealed class MandelbrotFractalEffect : BaseEffect
 			a: Utility.ClampToByte (a / settings.count)
 		);
 	}
-	#endregion
 
 	public sealed class MandelbrotFractalData : EffectData
 	{

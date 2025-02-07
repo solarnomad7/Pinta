@@ -39,7 +39,6 @@ internal sealed class MainWindow
 	// NRT - Created in OnActivated
 	WindowShell window_shell = null!;
 	Dock dock = null!;
-	Gio.Menu show_pad = null!;
 
 	CanvasPad canvas_pad = null!;
 
@@ -73,7 +72,9 @@ internal sealed class MainWindow
 		PintaCore.Initialize ();
 
 		// Initialize extensions
-		AddinManager.Initialize ();
+		string addins_dir = System.IO.Path.Combine (PintaCore.Settings.GetUserSettingsDirectory (), "addins");
+		AddinManager.Initialize (addins_dir);
+
 		AddinManager.Registry.Update ();
 		var setupService = new AddinSetupService (AddinManager.Registry);
 		if (!setupService.AreRepositoriesRegistered ())
@@ -118,7 +119,7 @@ internal sealed class MainWindow
 
 	private void Workspace_DocumentClosed (object? sender, DocumentEventArgs e)
 	{
-		var tab = FindTabWithCanvas ((PintaCanvas) e.Document.Workspace.Canvas);
+		var tab = FindTabWithCanvas ((CanvasWindow) e.Document.Workspace.CanvasWindow);
 
 		if (tab != null)
 			canvas_pad.Notebook.RemoveTab (tab);
@@ -165,6 +166,7 @@ internal sealed class MainWindow
 			RulersVisible = PintaCore.Actions.View.Rulers.Value,
 			RulerMetric = GetCurrentRulerMetric ()
 		};
+		doc.Workspace.CanvasWindow = canvas;
 		doc.Workspace.Canvas = canvas.Canvas;
 
 		DocumentViewContent my_content = new (doc, canvas);
@@ -224,9 +226,9 @@ internal sealed class MainWindow
 		// first shot at handling the event if
 		// the mouse pointer is on the canvas
 		if (PintaCore.Workspace.HasOpenDocuments) {
-			var canvas_window = ((PintaCanvas) PintaCore.Workspace.ActiveWorkspace.Canvas).CanvasWindow;
+			var canvas_window = (CanvasWindow) PintaCore.Workspace.ActiveWorkspace.CanvasWindow;
 
-			if ((canvas_window.Canvas.HasFocus || canvas_window.IsMouseOnCanvas) &&
+			if ((canvas_window.HasFocus || canvas_window.IsMouseOnCanvas) &&
 				 canvas_window.Canvas.DoKeyPressEvent (controller, args)) {
 				return true;
 			}
@@ -250,9 +252,9 @@ internal sealed class MainWindow
 		// Give the Canvas (and by extension the tools)
 		// first shot at handling the event if
 		// the mouse pointer is on the canvas
-		var canvas_window = ((PintaCanvas) PintaCore.Workspace.ActiveWorkspace.Canvas).CanvasWindow;
+		var canvas_window = (CanvasWindow) PintaCore.Workspace.ActiveWorkspace.CanvasWindow;
 
-		if (canvas_window.Canvas.HasFocus || canvas_window.IsMouseOnCanvas)
+		if (canvas_window.HasFocus || canvas_window.IsMouseOnCanvas)
 			canvas_window.Canvas.DoKeyReleaseEvent (controller, args);
 	}
 
@@ -264,22 +266,24 @@ internal sealed class MainWindow
 	}
 
 	// Called when an extension node is added or removed
-	private void OnExtensionChanged (object s, ExtensionNodeEventArgs args)
+	private async void OnExtensionChanged (object s, ExtensionNodeEventArgs args)
 	{
-		IExtension extension = (IExtension) args.ExtensionObject;
 		if (args.Change == ExtensionChange.Add) {
 			try {
+				IExtension extension = (IExtension) args.ExtensionObject;
 				extension.Initialize ();
 			} catch (Exception e) {
 				// Translators: {0} is the name of an add-in.
 				string body = Translations.GetString ("The '{0}' add-in may not be compatible with this version of Pinta", args.ExtensionNode.Addin.Id);
-				_ = PintaCore.Chrome.ShowErrorDialog (
+				await PintaCore.Chrome.ShowErrorDialog (
 					PintaCore.Chrome.MainWindow,
 					Translations.GetString ("Failed to initialize add-in"),
 					body, e.ToString ());
 			}
-		} else
+		} else {
+			IExtension extension = (IExtension) args.ExtensionObject;
 			extension.Uninitialize ();
+		}
 	}
 
 	#region GUI Construction
@@ -373,9 +377,6 @@ internal sealed class MainWindow
 		var pad_section = Gio.Menu.New ();
 		view_menu.AppendSection (null, pad_section);
 
-		show_pad = Gio.Menu.New ();
-		pad_section.AppendSubmenu (Translations.GetString ("Tool Windows"), show_pad);
-
 		if (window_shell.HeaderBar is not null) {
 			var header_bar = window_shell.HeaderBar;
 			header_bar.PackEnd (new Gtk.MenuButton () {
@@ -463,6 +464,7 @@ internal sealed class MainWindow
 			Hexpand = true,
 			Halign = Gtk.Align.Fill,
 		};
+		PintaCore.Chrome.InitializeDock (dock);
 
 		// Canvas pad
 		canvas_pad = new CanvasPad ();
@@ -471,11 +473,11 @@ internal sealed class MainWindow
 
 		// Layer pad
 		LayersPad layers_pad = new (PintaCore.Actions.Layers);
-		layers_pad.Initialize (dock, app, show_pad);
+		layers_pad.Initialize (dock);
 
 		// History pad
 		HistoryPad history_pad = new (PintaCore.Actions.Edit);
-		history_pad.Initialize (dock, app, show_pad);
+		history_pad.Initialize (dock);
 
 		container.Append (dock);
 	}
@@ -496,6 +498,7 @@ internal sealed class MainWindow
 		PintaCore.Actions.View.StatusBar.Value = PintaCore.Settings.GetSetting ("statusbar-shown", true);
 		PintaCore.Actions.View.ToolBox.Value = PintaCore.Settings.GetSetting ("toolbox-shown", true);
 		PintaCore.Actions.View.ImageTabs.Value = PintaCore.Settings.GetSetting ("image-tabs-shown", true);
+		PintaCore.Actions.View.ToolWindows.Value = PintaCore.Settings.GetSetting ("tool-windows-shown", true);
 
 		string dialog_uri = PintaCore.Settings.GetSetting (LastDialogDirSettingKey, PintaCore.RecentFiles.DefaultDialogDirectory?.GetUri () ?? "");
 		PintaCore.RecentFiles.LastDialogDirectory = Gio.FileHelper.NewForUri (dialog_uri);
@@ -522,6 +525,7 @@ internal sealed class MainWindow
 		PintaCore.Settings.PutSetting ("window-maximized", window_shell.Window.IsMaximized ());
 		PintaCore.Settings.PutSetting ("ruler-shown", PintaCore.Actions.View.Rulers.Value);
 		PintaCore.Settings.PutSetting ("image-tabs-shown", PintaCore.Actions.View.ImageTabs.Value);
+		PintaCore.Settings.PutSetting ("tool-windows-shown", PintaCore.Actions.View.ToolWindows.Value);
 		PintaCore.Settings.PutSetting ("toolbar-shown", PintaCore.Actions.View.ToolBar.Value);
 		PintaCore.Settings.PutSetting ("statusbar-shown", PintaCore.Actions.View.StatusBar.Value);
 		PintaCore.Settings.PutSetting ("toolbox-shown", PintaCore.Actions.View.ToolBox.Value);
@@ -576,10 +580,10 @@ internal sealed class MainWindow
 			int image_x = PintaCore.Workspace.ImageSize.Width;
 			int image_y = PintaCore.Workspace.ImageSize.Height;
 
-			var canvas_window = PintaCore.Workspace.ActiveWorkspace.Canvas.Parent!;
+			var canvas_viewport = PintaCore.Workspace.ActiveWorkspace.Canvas.Parent!;
 
-			int window_x = canvas_window.GetAllocatedWidth ();
-			int window_y = canvas_window.GetAllocatedHeight ();
+			int window_x = canvas_viewport.GetAllocatedWidth ();
+			int window_y = canvas_viewport.GetAllocatedHeight ();
 
 			double ratio =
 				(image_x / (double) window_x >= image_y / (double) window_y)
@@ -609,16 +613,16 @@ internal sealed class MainWindow
 		PintaCore.Actions.View.ResumeZoomUpdate ();
 
 		var doc = PintaCore.Workspace.ActiveDocument;
-		var tab = FindTabWithCanvas ((PintaCanvas) doc.Workspace.Canvas);
+		var tab = FindTabWithCanvas ((CanvasWindow) doc.Workspace.CanvasWindow);
 
 		if (tab != null)
 			canvas_pad.Notebook.ActiveItem = tab;
 
-		doc.Workspace.Canvas.GrabFocus ();
+		doc.Workspace.GrabFocusToCanvas ();
 	}
 
-	private IDockNotebookItem? FindTabWithCanvas (PintaCanvas canvas) =>
+	private IDockNotebookItem? FindTabWithCanvas (CanvasWindow canvas_window) =>
 		canvas_pad.Notebook.Items
-		.Where (i => ((CanvasWindow) i.Widget).Canvas == canvas)
+		.Where (i => ((CanvasWindow) i.Widget) == canvas_window)
 		.FirstOrDefault ();
 }

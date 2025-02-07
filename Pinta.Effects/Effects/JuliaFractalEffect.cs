@@ -18,7 +18,7 @@ namespace Pinta.Effects;
 public sealed class JuliaFractalEffect : BaseEffect
 {
 	public override string Icon
-		=> Pinta.Resources.Icons.EffectsRenderJuliaFractal;
+		=> Resources.Icons.EffectsRenderJuliaFractal;
 
 	public sealed override bool IsTileable
 		=> true;
@@ -35,48 +35,30 @@ public sealed class JuliaFractalEffect : BaseEffect
 	public JuliaFractalData Data
 		=> (JuliaFractalData) EffectData!;  // NRT - Set in constructor
 
-	private readonly IPaletteService palette;
 	private readonly IChromeService chrome;
-
+	private readonly IPaletteService palette;
+	private readonly IWorkspaceService workspace;
 	public JuliaFractalEffect (IServiceProvider services)
 	{
 		chrome = services.GetService<IChromeService> ();
 		palette = services.GetService<IPaletteService> ();
+		workspace = services.GetService<IWorkspaceService> ();
 		EffectData = new JuliaFractalData ();
 	}
 
 	public override Task<bool> LaunchConfiguration ()
-		=> chrome.LaunchSimpleEffectDialog (this);
+		=> chrome.LaunchSimpleEffectDialog (this, workspace);
 
-	#region Algorithm Code Ported From PDN
+	// Algorithm Code Ported From PDN
 
-	private static readonly double log2_10000 = Math.Log (10000);
+	private static readonly Julia fractal = new (maxSquared: 10_000);
 
-	private static double Julia (PointD jLoc, double r, double i)
-	{
-		double c = 0;
-		while (c < 256 && Utility.MagnitudeSquared (jLoc) < 10000) {
-			jLoc = GetNextLocation (jLoc, r, i);
-			++c;
-		}
-		return c - (2 - 2 * log2_10000 / Math.Log (Utility.MagnitudeSquared (jLoc)));
-	}
-
-	private static PointD GetNextLocation (PointD jLoc, double r, double i)
-	{
-		double t = jLoc.X;
-		double x = (jLoc.X * jLoc.X) - (jLoc.Y * jLoc.Y) + r;
-		double y = (2 * t * jLoc.Y) + i;
-		return new (x, y);
-	}
-
-	public override void Render (ImageSurface src, ImageSurface dst, ReadOnlySpan<RectangleI> rois)
+	protected override void Render (ImageSurface src, ImageSurface dst, RectangleI roi)
 	{
 		JuliaSettings settings = CreateSettings (dst);
 		Span<ColorBgra> dst_data = dst.GetPixelData ();
-		foreach (RectangleI rect in rois)
-			foreach (var pixel in Utility.GeneratePixelOffsets (rect, settings.canvasSize))
-				dst_data[pixel.memoryOffset] = GetPixelColor (settings, pixel.coordinates);
+		foreach (var pixel in Tiling.GeneratePixelOffsets (roi, settings.canvasSize))
+			dst_data[pixel.memoryOffset] = GetPixelColor (settings, pixel.coordinates);
 	}
 
 	private sealed record JuliaSettings (
@@ -143,10 +125,9 @@ public sealed class JuliaFractalEffect : BaseEffect
 
 			PointD jLoc = new (
 				X: (uP - vP * settings.aspect) * settings.invZoom,
-				Y: (vP + uP * settings.aspect) * settings.invZoom
-			);
+				Y: (vP + uP * settings.aspect) * settings.invZoom);
 
-			double j = Julia (jLoc, Jr, Ji);
+			double j = fractal.Compute (jLoc, Jr, Ji);
 
 			double c = settings.factor * j;
 
@@ -166,7 +147,6 @@ public sealed class JuliaFractalEffect : BaseEffect
 			r: Utility.ClampToByte (r / settings.count),
 			a: Utility.ClampToByte (a / settings.count));
 	}
-	#endregion
 
 	public sealed class JuliaFractalData : EffectData
 	{

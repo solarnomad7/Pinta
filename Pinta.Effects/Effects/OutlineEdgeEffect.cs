@@ -30,23 +30,23 @@ public sealed class OutlineEdgeEffect : BaseEffect
 	public OutlineEdgeData Data => (OutlineEdgeData) EffectData!;  // NRT - Set in constructor
 
 	private readonly IChromeService chrome;
+	private readonly IWorkspaceService workspace;
 	public OutlineEdgeEffect (IServiceProvider services)
 	{
 		chrome = services.GetService<IChromeService> ();
+		workspace = services.GetService<IWorkspaceService> ();
 		EffectData = new OutlineEdgeData ();
 	}
 
 	public override Task<bool> LaunchConfiguration ()
-		=> chrome.LaunchSimpleEffectDialog (this);
+		=> chrome.LaunchSimpleEffectDialog (this, workspace);
 
 	// Algorithm Code Ported From PDN
-	public override void Render (ImageSurface src, ImageSurface dest, ReadOnlySpan<RectangleI> rois)
+	protected override void Render (ImageSurface source, ImageSurface destination, RectangleI roi)
 	{
 		int thickness = Data.Thickness;
 		int intensity = Data.Intensity;
-
-		foreach (var rect in rois)
-			LocalHistogram.RenderRect (Apply, thickness, src, dest, rect);
+		LocalHistogram.RenderRect (Apply, thickness, source, destination, roi);
 
 		// === Methods ===
 
@@ -106,7 +106,7 @@ public sealed class OutlineEdgeEffect : BaseEffect
 
 			int aCount = 0;
 			int a1 = 0;
-			while (a1 < 255 && hb[a1] == 0)
+			while (a1 < 255 && ha[a1] == 0)
 				++a1;
 
 			while (a1 < 255 && aCount < minCount1) {
@@ -124,7 +124,8 @@ public sealed class OutlineEdgeEffect : BaseEffect
 				b: (byte) (255 - (b2 - b1)),
 				g: (byte) (255 - (g2 - g1)),
 				r: (byte) (255 - (r2 - r1)),
-				a: (byte) a2);
+				a: (byte) a2)
+				.ToPremultipliedAlpha ();
 		}
 	}
 

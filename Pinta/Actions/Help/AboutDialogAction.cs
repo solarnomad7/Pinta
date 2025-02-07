@@ -57,9 +57,9 @@ internal sealed class AboutDialogAction : IActionHandler
 		app.About.Activated -= Activated;
 	}
 
-	private void Activated (object sender, EventArgs e)
+	private async void Activated (object sender, EventArgs e)
 	{
-		Adw.AboutWindow dialog = Adw.AboutWindow.New ();
+		using Adw.AboutWindow dialog = Adw.AboutWindow.New ();
 		dialog.TransientFor = chrome.MainWindow;
 		dialog.Title = Translations.GetString ("About Pinta");
 		dialog.IconName = Icons.AboutPinta;
@@ -72,14 +72,14 @@ internal sealed class AboutDialogAction : IActionHandler
 		dialog.License = BuildLicenseText ();
 		dialog.Developers = authors;
 		dialog.TranslatorCredits = Translations.GetString ("translator-credits");
-		dialog.Present ();
+		await dialog.PresentAsync ();
 	}
 
 	private static string BuildCopyrightText ()
 	{
 		string copyrightText = Translations.GetString ("Copyright");
 		string contributorsText = Translations.GetString ("by Pinta contributors");
-		return $"{copyrightText} (c) 2010-2023 {contributorsText}";
+		return $"{copyrightText} (c) 2010-2025 {contributorsText}";
 	}
 
 	private static string BuildLicenseText ()
@@ -105,14 +105,20 @@ internal sealed class AboutDialogAction : IActionHandler
 	}
 
 	// AddCreditSection() isn't wrapped correctly by GtkSharp, so current and old authors are merged for now.
-	private readonly string[] authors = new[] {
+	private readonly string[] authors = [
 		"Cameron White (@cameronwhite)",
-		"Jonathan Pobst (@jpobst)",
-		"James Carroll (@MrCarroll)",
-		"Bartosz Głowacki (@Zeti123)",
-		"@JanDeDinoMan",
-		"@supershadoe",
-		"@Zekiah-A",
+		"@evgeniy-harchenko",
+		"@f-i-l-i-p",
+		"@khoidauminh",
+		"Lehonti Ramos (@Lehonti)",
+		"@logiclrd",
+		"@Matthieu-LAURENT39",
+		"@potatoes1286",
+		"@ptixed",
+		"@solarnomad7",
+		"@TheodorLasse",
+		"@yarikoptic",
+		"@zWolfrost",
 
 		// Old authors.
 		"A. Karon @akaro2424",
@@ -126,6 +132,7 @@ internal sealed class AboutDialogAction : IActionHandler
 		"André Veríssimo (@averissimo)",
 		"Andrew Davis",
 		"Balló György (@City-busz)",
+		"Bartosz Głowacki (@Zeti123)",
 		"Cameron White (@cameronwhite)",
 		"Ciprian Mustiata",
 		"Dan Dascalescu (@dandv)",
@@ -135,6 +142,7 @@ internal sealed class AboutDialogAction : IActionHandler
 		"Felix Schmutz",
 		"Greg Lowe",
 		"Hanh Pham",
+		"James Carroll (@MrCarroll)",
 		"James Gifford",
 		"Jami Kettunen (@JamiKettunen)",
 		"Jared Kells (@jkells)",
@@ -171,13 +179,16 @@ internal sealed class AboutDialogAction : IActionHandler
 		"@aivel",
 		"@anadvu",
 		"@darkdragon-001",
+		"@JanDeDinoMan",
 		"@jefetienne",
 		"@iangzh",
 		"@nikita-yfh",
 		"@pikachuiscool2",
 		"@scx",
 		"@skkestrel",
+		"@supershadoe",
 		"@tdaffin",
 		"@yaminb",
-	};
+		"@Zekiah-A",
+	];
 }

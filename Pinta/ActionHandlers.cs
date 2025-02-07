@@ -1,6 +1,6 @@
 // 
 // FileActionHandler.cs
-//  
+// 
 // Author:
 //       Jonathan Pobst <monkey@jpobst.com>
 // 
@@ -48,11 +48,10 @@ public sealed class ActionHandlers
 		CanvasGridManager canvasGrid = PintaCore.CanvasGrid;
 		string applicationVersion = PintaCore.ApplicationVersion;
 
-		action_handlers = new ()
-		{
+		action_handlers = [
 			// File
 			new NewDocumentAction (actions, chrome, palette, settings, workspace),
-			new NewScreenshotAction (chrome, workspace, actions),
+			new NewScreenshotAction (system, chrome, workspace, actions),
 			new OpenDocumentAction (actions.File, chrome, workspace, recentFiles, imageFormats),
 			new SaveDocumentAction (actions.File, workspace),
 			new SaveDocumentAsAction (actions.File, workspace),
@@ -76,11 +75,12 @@ public sealed class ActionHandlers
 
 			// Layers
 			new LayerPropertiesAction (chrome, actions.Layers, workspace),
-			new RotateZoomLayerAction (actions.Layers, workspace, tools),
+			new RotateZoomLayerAction (chrome, actions.Layers, workspace, tools),
 
 			// View
 			new ToolBarToggledAction (actions.View, chrome),
 			new ImageTabsToggledAction (actions.View, chrome),
+			new ToolWindowsToggledAction (actions.View, chrome),
 			new StatusBarToggledAction (actions.View, chrome),
 			new ToolBoxToggledAction (actions.View, chrome),
 			new ColorSchemeChangedAction (actions.View),
@@ -92,7 +92,7 @@ public sealed class ActionHandlers
 
 			// Help
 			new AboutDialogAction (actions.App, chrome, applicationVersion),
-		};
+		];
 
 		// Initialize each action handler
 		foreach (var action in action_handlers)

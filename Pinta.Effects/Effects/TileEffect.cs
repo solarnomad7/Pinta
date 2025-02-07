@@ -39,15 +39,17 @@ public sealed class TileEffect : BaseEffect
 
 	private readonly IChromeService chrome;
 	private readonly IPaletteService palette;
+	private readonly IWorkspaceService workspace;
 	public TileEffect (IServiceProvider services)
 	{
 		chrome = services.GetService<IChromeService> ();
 		palette = services.GetService<IPaletteService> ();
+		workspace = services.GetService<IWorkspaceService> ();
 		EffectData = new TileData ();
 	}
 
 	public override Task<bool> LaunchConfiguration ()
-		=> chrome.LaunchSimpleEffectDialog (this);
+		=> chrome.LaunchSimpleEffectDialog (this, workspace);
 
 	private sealed record TileSettings (
 		Size size,
@@ -69,8 +71,8 @@ public sealed class TileEffect : BaseEffect
 		float preliminaryIntensity = Data.Intensity;
 		int tileSize = Data.TileSize;
 		int antiAliasSample = ANTI_ALIAS_LEVEL * ANTI_ALIAS_LEVEL + 1;
-		float sin = (float) Math.Sin (rotationTheta.Radians);
-		float cos = (float) Math.Cos (rotationTheta.Radians);
+		float sin = (float) Math.Sin (-rotationTheta.Radians);
+		float cos = (float) Math.Cos (-rotationTheta.Radians);
 		return new (
 			size: size,
 			halfWidth: size.Width / 2f,
@@ -125,7 +127,7 @@ public sealed class TileEffect : BaseEffect
 		TileSettings settings = CreateSettings (source);
 		ReadOnlySpan<ColorBgra> sourceData = source.GetReadOnlyPixelData ();
 		Span<ColorBgra> destinationData = destination.GetPixelData ();
-		foreach (var pixel in Utility.GeneratePixelOffsets (roi, source.GetSize ()))
+		foreach (var pixel in Tiling.GeneratePixelOffsets (roi, source.GetSize ()))
 			destinationData[pixel.memoryOffset] = GetFinalPixelColor (
 				source,
 				settings,
